@@ -93,12 +93,21 @@ public class ComfortDataHandler extends Thread implements Listener {
     }
 
     @EventHandler
-    private void whenPlayerDies(final PlayerDeathEvent event) {
+    private void whenPlayerRespawns(final PlayerRespawnEvent event) {
 
         if(!Configuration.getColdness()) return;
 
         final Player player = event.getPlayer();
-        if(player.getFreezeTicks() > 0) player.setFreezeTicks(0);
+        if(player.getFreezeTicks() > 0) {
+            new BukkitRunnable() {
+
+                @Override
+                public void run() {
+                    player.setFreezeTicks(0);
+                }
+
+            }.runTask(plugin);
+        }
     }
     
     public ComfortDataHandler(final Firesparks plugin, final Map<Player, ComfortData> comfortDataMap) {
