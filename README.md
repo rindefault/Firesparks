@@ -9,12 +9,12 @@ Small Bukkit plugin for Minecraft that tweaks natural hearth regeneration in int
 ## Coldness system
 ![Imgur](https://i.imgur.com/EbFrce3.png)
 
-When a player don't stand next to the campfire or has no armor - he will get cold.
+When a player is not standing next to a campfire or does not have armor - he will freeze.
 
 ## Item burning feature
 ![Imgur](https://i.imgur.com/php5Ny6.png)
 
-You can put items in campfire, like food. After an item burn - it spreads some potion effects. You can configure this feature in `config.yml`.
+You can put items in campfire, like food. After the item burns - it spreads some potion effects. You can configure this feature in `config.yml`.
 
 ## Highly customizable config
 Now you can configure **comfort growth**, that allows you to gain more comfort per data-update.
