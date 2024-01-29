@@ -1,5 +1,5 @@
 # Firesparks
-> Compile: `mvn package`
+> Compile: `mvn clean package`
 
 ![Imgur](https://i.imgur.com/JCzRE7B.png)
 
