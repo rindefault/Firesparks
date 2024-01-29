@@ -1,6 +1,0 @@
-name: Firesparks
-version: '1.1'
-main: me.nologic.firesparks.Firesparks
-api-version: 1.20
-authors: [ NoLogic ]
-description: Fire warmth and healy feeling.
