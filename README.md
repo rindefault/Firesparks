@@ -2,15 +2,18 @@
 > Compile: `mvn package`
 
 ![Imgur](https://i.imgur.com/JCzRE7B.png)
+
 Small Bukkit plugin for Minecraft that tweaks natural hearth regeneration in interesting way.
 
 ..and not only regeneration, but also adds some other features.
 ## Coldness system
 ![Imgur](https://i.imgur.com/EbFrce3.png)
+
 When a player don't stand next to the campfire or has no armor - he will get cold.
 
 ## Item burning feature
 ![Imgur](https://i.imgur.com/php5Ny6.png)
+
 You can put items in campfire, like food. After an item burn - it spreads some potion effects. You can configure this feature in `config.yml`.
 
 ## Highly customizable config
