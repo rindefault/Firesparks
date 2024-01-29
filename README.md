@@ -34,8 +34,8 @@ Now you can configure **comfort growth**, that allows you to gain more comfort p
 
 `item-burn.enable: true`
 > Enables item burning feature.
-> You can right-click with item from config to burn it in campfire.
-> You can use this template to add items:
+> You can right-click with an item from config to burn it in campfire.
+> Use this template to add items:
 > ```yaml
 > MATERIAL: # https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Material.html
 >     effect: EFFECT # https://hub.spigotmc.org/javadocs/spigot/org/bukkit/potion/PotionEffectType.html
