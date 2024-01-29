@@ -32,7 +32,7 @@ public class CampfireItemBurnListener implements Listener {
 
     private final BurnableItemList burnableItemList = Configuration.getItemList();
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler
     public void onCampfireInteract(PlayerInteractEvent event) {
 
         if (event.getPlayer().getGameMode().equals(GameMode.SPECTATOR)) return;
