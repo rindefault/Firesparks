@@ -1,0 +1,12 @@
+me\nologic\firesparks\utilities\items\BurnableItemList.class
+me\nologic\firesparks\gameplay\CampfireItemBurnListener$1.class
+me\nologic\firesparks\gameplay\ComfortDataHandler$ComfortData$1.class
+me\nologic\firesparks\gameplay\ComfortDataHandler.class
+me\nologic\firesparks\Firesparks.class
+me\nologic\firesparks\gameplay\CampfireItemBurnListener.class
+me\nologic\firesparks\utilities\items\BurnableItem.class
+me\nologic\firesparks\gameplay\ComfortDataHandler$1.class
+me\nologic\firesparks\gameplay\ComfortDataHandler$ComfortData$Level.class
+me\nologic\firesparks\gameplay\events\ItemBurnEvent.class
+me\nologic\firesparks\gameplay\ComfortDataHandler$ComfortData.class
+me\nologic\firesparks\utilities\Colors.class

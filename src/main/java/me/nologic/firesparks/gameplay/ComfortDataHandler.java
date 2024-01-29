@@ -2,12 +2,10 @@ package me.nologic.firesparks.gameplay;
 
 import dev.geco.gsit.api.GSitAPI;
 import me.nologic.firesparks.Firesparks;
+import me.nologic.firesparks.utilities.Configuration;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.type.Campfire;
@@ -17,10 +15,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.Map;
 
@@ -29,6 +29,7 @@ public class ComfortDataHandler extends Thread implements Listener {
     private final Firesparks plugin;
     private final Map<Player, ComfortData> comfortDataMap;
     private boolean cancelled;
+    private final int comfortGrowthAmount;
     
     @Override
     public void run() {
@@ -41,19 +42,26 @@ public class ComfortDataHandler extends Thread implements Listener {
     
     private void tick() {
         this.comfortDataMap.values().forEach(data -> {
+
             data.update();
+
             if (data.isDelightfulness()) {
+
                 Player player = data.getPlayer();
+
                 Bukkit.getServer().getScheduler().runTask(this.plugin, () -> {
                     player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 50, 0, true, true, true));
                     player.setSaturation(player.getSaturation() - 1.0f);
+
                     if (player.getSaturation() == 0.0f) {
                         player.setFoodLevel(player.getFoodLevel() - 1);
                     }
+
                     if (!data.isMusicPlaying()) {
                         player.playSound(player.getLocation(), Sound.MUSIC_DISC_CAT, 1.0f, 1.0f);
                         data.setMusicPlaying(true);
                     }
+
                 });
             }
         });
@@ -61,7 +69,7 @@ public class ComfortDataHandler extends Thread implements Listener {
     
     @EventHandler
     private void whenPlayerJoin(final PlayerJoinEvent event) {
-        final Component name = Component.text("§l\u041a\u043e\u043c\u0444\u043e\u0440\u0442");
+        final Component name = Component.text(Configuration.getComfortBarName());
         final BossBar personalPlayerBar = BossBar.bossBar(name, 0.0f, BossBar.Color.RED, BossBar.Overlay.NOTCHED_20);
         final ComfortData data = new ComfortData(event.getPlayer(), personalPlayerBar);
         this.comfortDataMap.put(event.getPlayer(), data);
@@ -83,10 +91,20 @@ public class ComfortDataHandler extends Thread implements Listener {
             }
         }
     }
+
+    @EventHandler
+    private void whenPlayerDies(final PlayerDeathEvent event) {
+
+        if(!Configuration.getColdness()) return;
+
+        final Player player = event.getPlayer();
+        if(player.getFreezeTicks() > 0) player.setFreezeTicks(0);
+    }
     
     public ComfortDataHandler(final Firesparks plugin, final Map<Player, ComfortData> comfortDataMap) {
         this.plugin = plugin;
         this.comfortDataMap = comfortDataMap;
+        this.comfortGrowthAmount = Configuration.getComfortGrowthAmount();
     }
     
     public void setCancelled(final boolean cancelled) {
@@ -95,22 +113,39 @@ public class ComfortDataHandler extends Thread implements Listener {
     
     public final class ComfortData {
 
+        private Coldness coldness = Coldness.NORMAL;
+
         private final Player player;
         private int level;
         private Level state;
         private boolean musicPlaying;
         private boolean nearFire;
+        private boolean hasArmor;
         private boolean sitting;
         private final BossBar bar;
         
         public void update() {
+
             final boolean wellFed = this.player.getFoodLevel() > 17;
             this.nearFire = this.isPlayerNearWarmBlock();
             this.sitting = GSitAPI.isSitting(this.player);
-            if (this.nearFire && wellFed && this.sitting) {
-                this.increment();
+            this.hasArmor = this.isPlayerHasArmor();
+
+            if (this.nearFire) {
+                this.coldness = Coldness.WARM;
+                if (this.sitting && wellFed) {
+                    this.increment();
+                }
             }
             else {
+                if (Configuration.getColdness()) {
+                    if (this.isPlayerInColdBiome()) {
+                        decrementColdness();
+                    }
+                    else {
+                        resetColdness();
+                    }
+                }
                 this.decrement();
             }
         }
@@ -125,7 +160,7 @@ public class ComfortDataHandler extends Thread implements Listener {
             }
             else if (this.level < 800) {
                 if (this.state == Level.COZY) {
-                    this.player.sendMessage("§7\u0412\u044b \u0447\u0443\u0432\u0441\u0442\u0432\u0443\u0435\u0442\u0435 \u0441\u0435\u0431\u044f \u0445\u043e\u0440\u043e\u0448\u043e \u043e\u0442\u0434\u043e\u0445\u043d\u0443\u0432\u0448\u0438\u043c...");
+                    this.player.sendMessage(Configuration.getMessage("delightfulness"));
                 }
                 this.state = Level.NICE;
             }
@@ -168,11 +203,11 @@ public class ComfortDataHandler extends Thread implements Listener {
         
         private void increment() {
             if (this.level != 1000) {
-                if (this.level + 6 > 1000) {
+                if (this.level + comfortGrowthAmount > 1000) {
                     this.level = 1000;
                 }
                 else {
-                    this.level += 6;
+                    this.level += comfortGrowthAmount;
                 }
                 this.restate();
                 this.showBossBar((float)this.level);
@@ -190,6 +225,65 @@ public class ComfortDataHandler extends Thread implements Listener {
                 this.restate();
             }
         }
+
+        private void resetColdness() {
+
+            if (this.coldness == Coldness.COLD) {
+                this.coldness = Coldness.NORMAL;
+            }
+        }
+        private void decrementColdness() {
+
+            if (
+                player.getGameMode().equals(GameMode.SPECTATOR) ||
+                player.getGameMode().equals(GameMode.CREATIVE)
+            ) return;
+
+            if (this.hasArmor) return;
+
+            if (this.coldness == Coldness.WARM) {
+                this.coldness = Coldness.NORMAL;
+            }
+            else if (this.coldness == Coldness.NORMAL) {
+
+                if (player.getFreezeTicks() > 0) return;
+
+                new BukkitRunnable() {
+                    int freezeTime = 20;
+
+                    @Override
+                    public void run() {
+                        if (
+                            coldness == Coldness.COLD ||
+                            !isPlayerInColdBiome() ||
+                            isPlayerHasArmor() ||
+                            isPlayerNearWarmBlock()
+                        ) this.cancel();
+
+                        if (freezeTime < 120) {
+                            freezeTime++;
+
+                            player.setFreezeTicks(freezeTime);
+                        }
+                        else {
+                            this.cancel();
+                            coldness = Coldness.COLD;
+
+                            player.setFreezeTicks(200);
+
+                            player.sendMessage(Configuration.getMessage("getting-cold"));
+                            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_HURT_FREEZE, 1f, 0f);
+                        }
+                    }
+
+                }.runTaskTimerAsynchronously(plugin, 0L, 1L);
+
+            }
+            else if (this.coldness == Coldness.COLD) {
+                player.setFreezeTicks(200);
+            }
+
+        }
         
         private boolean isPlayerNearWarmBlock() {
             final Material[] targets = { Material.CAMPFIRE, Material.SOUL_CAMPFIRE, Material.FURNACE, Material.BLAST_FURNACE, Material.SMOKER };
@@ -201,19 +295,26 @@ public class ComfortDataHandler extends Thread implements Listener {
                         final Block block = loc.getBlock().getRelative(face, distance);
                         for (final Material target : targets) {
                             if (block.getType() == target) {
-
                                 return switch (target) {
                                     case CAMPFIRE, SOUL_CAMPFIRE -> ((Campfire) block.getBlockData()).isLit();
                                     case FURNACE, BLAST_FURNACE, SMOKER -> ((Furnace) block.getBlockData()).isLit();
                                     default -> false;
                                 };
-
                             }
                         }
                     }
                 }
             }
             return false;
+        }
+        private boolean isPlayerHasArmor() {
+            return this.player.getInventory().getBoots() != null &&
+                   this.player.getInventory().getLeggings() != null &&
+                   this.player.getInventory().getChestplate() != null &&
+                   this.player.getInventory().getHelmet() != null;
+        }
+        private boolean isPlayerInColdBiome() {
+            return this.player.getWorld().getBlockAt(this.player.getLocation()).getTemperature() <= 0.05;
         }
         
         public ComfortData(final Player player, final BossBar bar) {
@@ -242,12 +343,15 @@ public class ComfortDataHandler extends Thread implements Listener {
         }
         
         public enum Level {
-
             LOW, 
             NORMAL, 
             NICE, 
-            COZY;
-
+            COZY
+        }
+        public enum Coldness {
+            COLD,
+            NORMAL,
+            WARM
         }
     }
 
