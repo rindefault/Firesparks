@@ -15,9 +15,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -264,10 +264,19 @@ public class ComfortDataHandler extends Thread implements Listener {
                     public void run() {
                         if (
                             coldness == Coldness.COLD ||
+
                             !isPlayerInColdBiome() ||
                             isPlayerHasArmor() ||
                             isPlayerNearWarmBlock()
                         ) this.cancel();
+
+                        if (
+                            player.getGameMode().equals(GameMode.SPECTATOR) ||
+                            player.getGameMode().equals(GameMode.CREATIVE)
+                        ) {
+                            this.cancel();
+                            resetColdness();
+                        }
 
                         if (freezeTime < 120) {
                             freezeTime++;
@@ -363,5 +372,4 @@ public class ComfortDataHandler extends Thread implements Listener {
             WARM
         }
     }
-
 }
