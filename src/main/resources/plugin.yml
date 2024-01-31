@@ -4,3 +4,5 @@ main: me.nologic.firesparks.Firesparks
 api-version: 1.20
 authors: [ NoLogic, Rin ]
 description: Fire warmth and healy feeling.
+depend:
+  - GSit
