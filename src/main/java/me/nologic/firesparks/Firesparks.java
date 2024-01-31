@@ -34,13 +34,21 @@ public class Firesparks extends JavaPlugin {
         // PLugin startup message
 
         Component header = MiniMessage.miniMessage().deserialize(
-            " <dark_gray>~ <#e5a470>\uD83D\uDD25 <#efbd7a>Fire<#f7da82>sparks <dark_gray>~ "
+                " <dark_gray>~ <#e5a470>\uD83D\uDD25 <#efbd7a>Fire<#f7da82>sparks <dark_gray>~ "
         );
         String footer = Configuration.getMessage("message-of-the-day");
 
         Bukkit.getConsoleSender().sendMessage(" ");
         Bukkit.getConsoleSender().sendMessage(header);
-        Bukkit.getConsoleSender().sendMessage(footer);
+
+        if (super.getServer().getPluginManager().getPlugin("GSit") != null) { // GSit dependency check
+            Bukkit.getConsoleSender().sendMessage(footer);
+        }
+        else {
+            Bukkit.getConsoleSender().sendMessage("§cGSit not found! Disabling...");
+            super.getServer().getPluginManager().disablePlugin(this);
+        }
+
         Bukkit.getConsoleSender().sendMessage(" ");
 
     }
