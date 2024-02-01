@@ -123,6 +123,7 @@ public class ComfortDataHandler extends Thread implements Listener {
     public final class ComfortData {
 
         private Coldness coldness = Coldness.NORMAL;
+        private Boolean coldnessTask = false;
 
         private final Player player;
         private int level;
@@ -256,19 +257,25 @@ public class ComfortDataHandler extends Thread implements Listener {
             else if (this.coldness == Coldness.NORMAL) {
 
                 if (player.getFreezeTicks() > 0) return;
+                if(this.coldnessTask) return;
 
                 new BukkitRunnable() {
-                    int freezeTime = 20;
+                    int freezeTime = 0;
 
                     @Override
                     public void run() {
+                        coldnessTask = true;
+
                         if (
                             coldness == Coldness.COLD ||
 
                             !isPlayerInColdBiome() ||
                             isPlayerHasArmor() ||
                             isPlayerNearWarmBlock()
-                        ) this.cancel();
+                        ) {
+                            this.cancel();
+                            coldnessTask = false;
+                        }
 
                         if (
                             player.getGameMode().equals(GameMode.SPECTATOR) ||
@@ -276,6 +283,7 @@ public class ComfortDataHandler extends Thread implements Listener {
                         ) {
                             this.cancel();
                             resetColdness();
+                            coldnessTask = false;
                         }
 
                         if (freezeTime < 120) {
@@ -285,6 +293,7 @@ public class ComfortDataHandler extends Thread implements Listener {
                         }
                         else {
                             this.cancel();
+                            coldnessTask = false;
                             coldness = Coldness.COLD;
 
                             player.setFreezeTicks(200);
@@ -294,8 +303,7 @@ public class ComfortDataHandler extends Thread implements Listener {
                         }
                     }
 
-                }.runTaskTimerAsynchronously(plugin, 0L, 1L);
-
+                }.runTaskTimer(plugin, 0L, 1L);
             }
             else if (this.coldness == Coldness.COLD) {
                 player.setFreezeTicks(200);
@@ -372,4 +380,5 @@ public class ComfortDataHandler extends Thread implements Listener {
             WARM
         }
     }
+
 }
