@@ -50,7 +50,7 @@ public class BurnableItemList {
             int duration = config.getInt("item-burn.item-list." + name + ".duration");
             int timeToBurn = config.getInt("item-burn.item-list." + name + ".time-to-burn");
 
-            BurnableItem burnableItem = new BurnableItem(duration, timeToBurn, effect, potionColor, name);
+            BurnableItem burnableItem = new BurnableItem(timeToBurn, duration, name, effect, potionColor);
             burnableItemArrayList.add(burnableItem);
         }
         return new BurnableItemList(burnableItemArrayList);
