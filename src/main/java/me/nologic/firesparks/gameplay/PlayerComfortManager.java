@@ -27,6 +27,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerComfortManager implements Listener {
 
@@ -37,7 +38,7 @@ public class PlayerComfortManager implements Listener {
 
     public PlayerComfortManager(final Firesparks plugin) {
         this.plugin = plugin;
-        this.comfortDataMap = new HashMap<>();
+        this.comfortDataMap = new ConcurrentHashMap<>();
         this.comfortPerTick = Configuration.getComfortGrowthAmount();
         this.comfortNamespacedKey = new NamespacedKey(plugin, "comfort");
         plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, this::tick, 0L, 20L);
