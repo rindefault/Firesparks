@@ -41,7 +41,7 @@ public class BurnableItemList {
     public static BurnableItemList build() {
 
         ArrayList<BurnableItem> burnableItemArrayList = new ArrayList<>();
-        Set<String> itemNames = Firesparks.getPlugin().getConfig().getConfigurationSection("item-burn.item-list").getKeys(false);
+        Set<String> itemNames = Firesparks.getInstance().getConfig().getConfigurationSection("item-burn.item-list").getKeys(false);
 
         for (String name : itemNames) {
             String effect = config.getString("item-burn.item-list." + name + ".effect");

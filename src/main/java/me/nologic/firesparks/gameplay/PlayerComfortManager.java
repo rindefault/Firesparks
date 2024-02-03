@@ -1,6 +1,8 @@
 package me.nologic.firesparks.gameplay;
 
 import dev.geco.gsit.api.GSitAPI;
+import lombok.Getter;
+import lombok.Setter;
 import me.nologic.firesparks.Firesparks;
 import me.nologic.firesparks.utilities.Configuration;
 import net.kyori.adventure.bossbar.BossBar;
@@ -18,37 +20,41 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.HashMap;
 import java.util.Map;
 
-public class ComfortDataHandler extends Thread implements Listener {
+public class PlayerComfortManager implements Listener {
 
     private final Firesparks plugin;
     private final Map<Player, ComfortData> comfortDataMap;
-    private boolean cancelled;
-    private final int comfortGrowthAmount;
-    
-    @Override
-    public void run() {
-        while (!this.cancelled) {
-            this.tick();
-            try { Thread.sleep(2000L); }
-            catch (Exception ignored) {}
-        }
+    private final NamespacedKey            comfortNamespacedKey;
+    private final int                      comfortPerTick;
+
+    public PlayerComfortManager(final Firesparks plugin) {
+        this.plugin = plugin;
+        this.comfortDataMap = new HashMap<>();
+        this.comfortPerTick = Configuration.getComfortGrowthAmount();
+        this.comfortNamespacedKey = new NamespacedKey(plugin, "comfort");
+        plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, this::tick, 0L, 20L);
     }
     
     private void tick() {
         this.comfortDataMap.values().forEach(data -> {
 
+            // The comfort date (block scan and increment/decrement) is calculated asynchronously from the main server thread.
             data.update();
 
+            // In case the comfort level is COZY, the player is near campfire, and he is sitting, we apply the regeneration effect to him.
             if (data.isDelightfulness()) {
 
-                Player player = data.getPlayer();
+                final Player player = data.getPlayer();
 
+                // Of course, interaction with the player is handled in the main thread of the server.
                 Bukkit.getServer().getScheduler().runTask(this.plugin, () -> {
                     player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 50, 0, true, true, true));
                     player.setSaturation(player.getSaturation() - 1.0f);
@@ -66,18 +72,27 @@ public class ComfortDataHandler extends Thread implements Listener {
             }
         });
     }
-    
+
     @EventHandler
     private void whenPlayerJoin(final PlayerJoinEvent event) {
         final Component name = Component.text(Configuration.getComfortBarName());
         final BossBar personalPlayerBar = BossBar.bossBar(name, 0.0f, BossBar.Color.RED, BossBar.Overlay.NOTCHED_20);
-        final ComfortData data = new ComfortData(event.getPlayer(), personalPlayerBar);
+        final ComfortData data = new ComfortData(event.getPlayer(), personalPlayerBar, this.loadComfortData(event.getPlayer()));
         this.comfortDataMap.put(event.getPlayer(), data);
     }
     
     @EventHandler
     private void whenPlayerQuit(final PlayerQuitEvent event) {
-        this.comfortDataMap.remove(event.getPlayer());
+        this.saveComfortData(event.getPlayer());
+    }
+
+    private int loadComfortData(final Player player) {
+        return player.getPersistentDataContainer().getOrDefault(comfortNamespacedKey, PersistentDataType.INTEGER, 0);
+    }
+
+    private void saveComfortData(final Player player) {
+        player.getPersistentDataContainer().set(comfortNamespacedKey, PersistentDataType.INTEGER, comfortDataMap.get(player).getComfortAmount());
+        this.comfortDataMap.remove(player);
     }
     
     @EventHandler
@@ -86,8 +101,8 @@ public class ComfortDataHandler extends Thread implements Listener {
         if (entity instanceof Player player) {
             final ComfortData data = this.comfortDataMap.get(player);
             if (data != null) {
-                data.setLevel((int)(data.getLevel() - event.getFinalDamage() * 50.0));
-                data.getBar().progress((float)(data.getLevel() / 1000));
+                data.setComfortAmount((int)(data.getComfortAmount() - event.getFinalDamage() * 50.0));
+                data.getBar().progress((float)(data.getComfortAmount() / 1000));
             }
         }
     }
@@ -95,10 +110,10 @@ public class ComfortDataHandler extends Thread implements Listener {
     @EventHandler
     private void whenPlayerRespawns(final PlayerRespawnEvent event) {
 
-        if(!Configuration.getColdness()) return;
+        if (!Configuration.getColdness()) return;
 
         final Player player = event.getPlayer();
-        if(player.getFreezeTicks() > 0) {
+        if (player.getFreezeTicks() > 0) {
             new BukkitRunnable() {
 
                 @Override
@@ -106,33 +121,34 @@ public class ComfortDataHandler extends Thread implements Listener {
                     player.setFreezeTicks(0);
                 }
 
-            }.runTask(plugin);
+            }.runTaskLater(plugin, 1L);
         }
     }
-    
-    public ComfortDataHandler(final Firesparks plugin, final Map<Player, ComfortData> comfortDataMap) {
-        this.plugin = plugin;
-        this.comfortDataMap = comfortDataMap;
-        this.comfortGrowthAmount = Configuration.getComfortGrowthAmount();
-    }
-    
-    public void setCancelled(final boolean cancelled) {
-        this.cancelled = cancelled;
-    }
-    
+
+    @Getter
     public final class ComfortData {
 
-        private Coldness coldness = Coldness.NORMAL;
-        private Boolean coldnessTask = false;
+        private final Player  player;
+        private final BossBar bar;
 
-        private final Player player;
-        private int level;
-        private Level state;
-        private boolean musicPlaying;
+        private Coldness coldness     = Coldness.NORMAL;
+        private Boolean  coldnessTask = false;
+
+        private ComfortLevel comfortLevel;
+        private int          comfortAmount;
+
         private boolean nearFire;
         private boolean hasArmor;
         private boolean sitting;
-        private final BossBar bar;
+
+        @Setter
+        private boolean musicPlaying;
+
+        public ComfortData(final Player player, final BossBar bar, final int level) {
+            this.player = player;
+            this.bar    = bar;
+            this.comfortAmount = level;
+        }
         
         public void update() {
 
@@ -161,41 +177,41 @@ public class ComfortDataHandler extends Thread implements Listener {
         }
         
         private void restate() {
-            if (this.level < 100) {
-                this.state = Level.LOW;
+            if (this.comfortAmount < 100) {
+                this.comfortLevel = ComfortLevel.LOW;
             }
-            else if (this.level < 600) {
-                this.state = Level.NORMAL;
+            else if (this.comfortAmount < 600) {
+                this.comfortLevel = ComfortLevel.NORMAL;
                 this.musicPlaying = false;
             }
-            else if (this.level < 800) {
-                if (this.state == Level.COZY) {
+            else if (this.comfortAmount < 800) {
+                if (this.comfortLevel == ComfortLevel.COZY) {
                     this.player.sendMessage(Configuration.getMessage("delightfulness"));
                 }
-                this.state = Level.NICE;
+                this.comfortLevel = ComfortLevel.NICE;
             }
             else {
-                this.state = Level.COZY;
+                this.comfortLevel = ComfortLevel.COZY;
             }
         }
         
         public boolean isDelightfulness() {
-            return this.state == Level.COZY && this.nearFire && this.sitting;
+            return this.comfortLevel == ComfortLevel.COZY && this.nearFire && this.sitting;
         }
         
-        public void setLevel(int value) {
+        public void setComfortAmount(int value) {
             if (value < 0) {
                 value = 0;
             }
             else if (value > 1000) {
                 value = 1000;
             }
-            this.level = value;
+            this.comfortAmount = value;
         }
         
         public void showBossBar(final float level) {
 
-            switch (this.state) {
+            switch (this.comfortLevel) {
                 case LOW -> this.bar.color(BossBar.Color.RED);
                 case NORMAL -> this.bar.color(BossBar.Color.YELLOW);
                 case NICE -> this.bar.color(BossBar.Color.BLUE);
@@ -204,33 +220,33 @@ public class ComfortDataHandler extends Thread implements Listener {
 
             this.bar.progress(level / 1000.0f);
             this.player.showBossBar(this.bar);
-            Bukkit.getServer().getScheduler().runTaskLater(ComfortDataHandler.this.plugin, () -> {
-                if (level >= this.level) {
+            Bukkit.getServer().getScheduler().runTaskLater(PlayerComfortManager.this.plugin, () -> {
+                if (level >= this.comfortAmount) {
                     this.player.hideBossBar(this.bar);
                 }
             }, 100L);
         }
         
         private void increment() {
-            if (this.level != 1000) {
-                if (this.level + comfortGrowthAmount > 1000) {
-                    this.level = 1000;
+            if (this.comfortAmount != 1000) {
+                if (this.comfortAmount + comfortPerTick > 1000) {
+                    this.comfortAmount = 1000;
                 }
                 else {
-                    this.level += comfortGrowthAmount;
+                    this.comfortAmount += comfortPerTick;
                 }
                 this.restate();
-                this.showBossBar((float)this.level);
+                this.showBossBar((float)this.comfortAmount);
             }
         }
         
         private void decrement() {
-            if (this.level != 0) {
-                if (this.level - 2 < 0) {
-                    this.level = 0;
+            if (this.comfortAmount != 0) {
+                if (this.comfortAmount - 2 < 0) {
+                    this.comfortAmount = 0;
                 }
                 else {
-                    this.level -= 2;
+                    this.comfortAmount -= 2;
                 }
                 this.restate();
             }
@@ -343,42 +359,19 @@ public class ComfortDataHandler extends Thread implements Listener {
             return this.player.getWorld().getBlockAt(this.player.getLocation()).getTemperature() <= 0.05;
         }
         
-        public ComfortData(final Player player, final BossBar bar) {
-            this.player = player;
-            this.bar = bar;
-        }
-        
-        public Player getPlayer() {
-            return this.player;
-        }
-        
-        public int getLevel() {
-            return this.level;
-        }
-
-        public boolean isMusicPlaying() {
-            return this.musicPlaying;
-        }
-        
-        public void setMusicPlaying(final boolean musicPlaying) {
-            this.musicPlaying = musicPlaying;
-        }
-        
-        public BossBar getBar() {
-            return this.bar;
-        }
-        
-        public enum Level {
+        public enum ComfortLevel {
             LOW, 
             NORMAL, 
             NICE, 
             COZY
         }
+
         public enum Coldness {
             COLD,
             NORMAL,
             WARM
         }
+
     }
 
 }

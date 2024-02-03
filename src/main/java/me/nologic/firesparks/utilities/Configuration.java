@@ -9,7 +9,7 @@ import java.util.List;
 
 public class Configuration {
 
-    private static final FileConfiguration config = Firesparks.getPlugin().getConfig();
+    private static final FileConfiguration config = Firesparks.getInstance().getConfig();
     private static final BurnableItemList burnableItemList = BurnableItemList.build();
 
     public static String getMessage(String message) {

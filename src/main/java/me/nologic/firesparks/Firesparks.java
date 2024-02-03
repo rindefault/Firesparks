@@ -1,31 +1,29 @@
 package me.nologic.firesparks;
 
+import lombok.Getter;
 import me.nologic.firesparks.gameplay.CampfireItemBurnListener;
-import me.nologic.firesparks.gameplay.ComfortDataHandler;
+import me.nologic.firesparks.gameplay.PlayerComfortManager;
 import me.nologic.firesparks.utilities.Configuration;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.concurrent.ConcurrentHashMap;
-
 public class Firesparks extends JavaPlugin {
 
-    private ComfortDataHandler comfort;
-    private static Firesparks plugin;
+    @Getter
+    private static Firesparks instance;
 
-    public static Firesparks getPlugin() {
-        return plugin;
-    }
-    
+    @Getter
+    private PlayerComfortManager comfortManager;
+
     public void onEnable() {
 
-        plugin = this;
+        instance = this;
         this.saveDefaultConfig();
 
-        (this.comfort = new ComfortDataHandler(this, new ConcurrentHashMap<>())).start();
-        super.getServer().getPluginManager().registerEvents(this.comfort, this);
+        this.comfortManager = new PlayerComfortManager(this);
+        super.getServer().getPluginManager().registerEvents(this.comfortManager, this);
 
         if (Configuration.getItemBurn()) {
             super.getServer().getPluginManager().registerEvents(new CampfireItemBurnListener(), this);
@@ -52,8 +50,5 @@ public class Firesparks extends JavaPlugin {
         Bukkit.getConsoleSender().sendMessage(" ");
 
     }
-    
-    public void onDisable() {
-        this.comfort.setCancelled(true);
-    }
+
 }

@@ -124,7 +124,7 @@ public class CampfireItemBurnListener implements Listener {
 
                 this.cancel();
             }
-        }.runTaskLater(Firesparks.getPlugin(), 20L * burnableItem.getTimeToBurn());
+        }.runTaskLater(Firesparks.getInstance(), 20L * burnableItem.getTimeToBurn());
     }
 
     @Nullable
